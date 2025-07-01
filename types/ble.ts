@@ -1,31 +1,28 @@
-export interface BatteryTestData {
-  voltage: number;
+export interface DeviceData {
   current: number;
-  targetCurrent: number;
-  capacity: number;
-  testStatus: 'STOPPED' | 'RUNNING';
-  elapsedTime: number;
-  internalResistance?: number;
-  openCircuitVoltage?: number;
-  finalVoltage?: number;
-  testDuration?: number;
+  voltage: number;
+  power: number;
+  peakCurrent: number;
+  minCurrent: number;
+  peakVoltage: number;
+  minVoltage: number;
+  uptime: number;
+  energy: number;
+  alarm: boolean;
+  zeroOffset: number;
   timestamp: number;
 }
 
-export interface PIDData {
-  error: number;
-  output: number;
-  integral: number;
-  pTerm?: number;
-  iTerm?: number;
-  dTerm?: number;
-}
-
-export interface TestConfig {
-  maxCurrent: number;
-  minCurrent: number;
-  cutoffVoltage: number;
-  currentStep: number;
+export interface DeviceConfig {
+  currentAlarmHigh: number;
+  currentAlarmLow: number;
+  voltageAlarmHigh: number;
+  voltageAlarmLow: number;
+  alarmsEnabled: boolean;
+  dataLoggingEnabled: boolean;
+  logInterval: number;
+  calibrationFactor: number;
+  voltageCalibrationFactor: number;
 }
 
 export interface ConnectionState {
@@ -38,17 +35,7 @@ export interface ConnectionState {
 
 export interface DataPoint {
   timestamp: number;
-  voltage: number;
   current: number;
-  capacity: number;
-}
-
-export interface TestResult {
-  finalCapacity: number;
-  internalResistance?: number;
-  testDuration: number;
-  finalVoltage: number;
-  openCircuitVoltage: number;
-  averageCurrent: number;
-  energyDelivered: number;
+  voltage: number;
+  power: number;
 }

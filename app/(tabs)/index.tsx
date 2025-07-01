@@ -4,21 +4,18 @@ import { useState } from 'react';
 import { StatusCard } from '@/components/StatusCard';
 import { ConnectionStatus } from '@/components/ConnectionStatus';
 import { CircularGauge } from '@/components/CircularGauge';
-import { TestProgress } from '@/components/TestProgress';
 import { useBLE } from '@/hooks/useBLE';
-import { Battery, Zap, Clock, Activity } from 'lucide-react-native';
+import { Activity, Zap, Gauge, TrendingUp } from 'lucide-react-native';
 
-export default function TestScreen() {
+export default function MonitorScreen() {
   const {
     connectionState,
-    testData,
-    testConfig,
+    deviceData,
     isScanning,
     availableDevices,
     startScanning,
     connectToDevice,
     disconnect,
-    getStatus,
   } = useBLE();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -26,8 +23,9 @@ export default function TestScreen() {
   const handleRefresh = async () => {
     setRefreshing(true);
     if (connectionState.isConnected) {
+      // Request fresh data from device
       try {
-        await getStatus();
+        // The useBLE hook will handle sending STATUS command
       } catch (error) {
         console.error('Refresh error:', error);
       }
@@ -35,18 +33,9 @@ export default function TestScreen() {
     setTimeout(() => setRefreshing(false), 1000);
   };
 
-  const voltage = testData?.voltage ?? 0;
-  const current = testData?.current ?? 0;
-  const capacity = testData?.capacity ?? 0;
-  const targetCurrent = testData?.targetCurrent ?? 0;
-  const isTestRunning = testData?.testStatus === 'RUNNING';
-
-  const formatTime = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
+  const currentValue = deviceData?.current ?? 0;
+  const voltageValue = deviceData?.voltage ?? 0;
+  const powerValue = deviceData?.power ?? 0;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -56,8 +45,8 @@ export default function TestScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor="#FBBF24"
-            colors={['#FBBF24']}
+            tintColor="#0EA5E9"
+            colors={['#0EA5E9']}
           />
         }
       >
@@ -70,90 +59,68 @@ export default function TestScreen() {
           onDeviceSelect={connectToDevice}
         />
 
-        {isTestRunning && (
-          <TestProgress
-            capacity={capacity}
-            elapsedTime={testData?.elapsedTime ?? 0}
-            voltage={voltage}
-            current={current}
-            targetCurrent={targetCurrent}
-          />
-        )}
-
         <View style={styles.gaugeContainer}>
           <CircularGauge
-            value={voltage}
-            maxValue={testConfig?.cutoffVoltage ? testConfig.cutoffVoltage + 5 : 15}
+            value={Math.abs(currentValue)}
+            maxValue={50}
+            size={120}
+            strokeWidth={8}
+            color="#0EA5E9"
+            backgroundColor="#1E293B"
+            title="Current"
+            unit="A"
+          />
+          <CircularGauge
+            value={voltageValue}
+            maxValue={15}
             size={120}
             strokeWidth={8}
             color="#10B981"
-            backgroundColor="#1E40AF"
+            backgroundColor="#1E293B"
             title="Voltage"
             unit="V"
-          />
-          <CircularGauge
-            value={current}
-            maxValue={testConfig?.maxCurrent ?? 20}
-            size={120}
-            strokeWidth={8}
-            color="#F59E0B"
-            backgroundColor="#1E40AF"
-            title="Current"
-            unit="A"
           />
         </View>
 
         <StatusCard
-          title="Battery Voltage"
-          value={voltage.toFixed(3)}
+          title="Current"
+          value={currentValue.toFixed(2)}
+          unit="A"
+          icon={Activity}
+          color="#0EA5E9"
+          backgroundColor="#0EA5E920"
+          trend="stable"
+        />
+
+        <StatusCard
+          title="Voltage"
+          value={voltageValue.toFixed(2)}
           unit="V"
-          icon={Battery}
+          icon={Zap}
           color="#10B981"
           backgroundColor="#10B98120"
-          trend={isTestRunning ? (voltage > 12 ? 'stable' : 'down') : 'stable'}
+          trend="stable"
         />
 
         <StatusCard
-          title="Discharge Current"
-          value={current.toFixed(3)}
-          unit="A"
-          icon={Zap}
+          title="Power"
+          value={powerValue.toFixed(1)}
+          unit="W"
+          icon={Gauge}
           color="#F59E0B"
           backgroundColor="#F59E0B20"
-          trend={isTestRunning ? 'stable' : 'stable'}
+          trend="up"
         />
 
         <StatusCard
-          title="Capacity Measured"
-          value={capacity.toFixed(0)}
-          unit="mAh"
-          icon={Activity}
+          title="Energy"
+          value={(deviceData?.energy ?? 0).toFixed(3)}
+          unit="Wh"
+          icon={TrendingUp}
           color="#8B5CF6"
           backgroundColor="#8B5CF620"
-          trend={isTestRunning ? 'up' : 'stable'}
+          trend="up"
         />
-
-        <StatusCard
-          title="Test Duration"
-          value={formatTime(testData?.elapsedTime ?? 0)}
-          unit=""
-          icon={Clock}
-          color="#06B6D4"
-          backgroundColor="#06B6D420"
-          trend={isTestRunning ? 'up' : 'stable'}
-        />
-
-        {testData?.internalResistance && (
-          <StatusCard
-            title="Internal Resistance"
-            value={(testData.internalResistance * 1000).toFixed(1)}
-            unit="mΩ"
-            icon={Activity}
-            color="#EF4444"
-            backgroundColor="#EF444420"
-            trend="stable"
-          />
-        )}
       </ScrollView>
     </SafeAreaView>
   );
