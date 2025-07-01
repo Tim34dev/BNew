@@ -13,8 +13,7 @@
       "infoPlist": {
         "NSBluetoothAlwaysUsageDescription": "This app uses Bluetooth to connect to battery testing devices.",
         "NSBluetoothPeripheralUsageDescription": "This app uses Bluetooth to connect to battery testing devices."
-      },
-      "bundleIdentifier": "com.batterytester.app"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -28,8 +27,7 @@
         "android.permission.BLUETOOTH_SCAN",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION"
-      ],
-      "package": "com.batterytester.app"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -50,11 +48,6 @@
     ],
     "experiments": {
       "typedRoutes": true
-    },
-    "extra": {
-      "eas": {
-        "projectId": "your-project-id-here"
-      }
     }
   }
 }
