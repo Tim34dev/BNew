@@ -1,24 +1,24 @@
 {
   "expo": {
-    "name": "BLE Current Monitor",
-    "slug": "ble-current-monitor",
+    "name": "Battery Capacity Tester",
+    "slug": "battery-capacity-tester",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "currentmonitor",
+    "scheme": "batterytester",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSBluetoothAlwaysUsageDescription": "This app uses Bluetooth to connect to current monitoring devices.",
-        "NSBluetoothPeripheralUsageDescription": "This app uses Bluetooth to connect to current monitoring devices."
+        "NSBluetoothAlwaysUsageDescription": "This app uses Bluetooth to connect to battery testing devices.",
+        "NSBluetoothPeripheralUsageDescription": "This app uses Bluetooth to connect to battery testing devices."
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#0F172A"
+        "backgroundColor": "#1E40AF"
       },
       "permissions": [
         "android.permission.BLUETOOTH",

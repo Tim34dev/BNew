@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Platform, PermissionsAndroid, Alert } from 'react-native';
 import { BleManager, Device, Characteristic, State } from 'react-native-ble-plx';
-import { DeviceData, ConnectionState, DeviceConfig } from '@/types/ble';
+import { BatteryTestData, ConnectionState, TestConfig, PIDData, TestResult } from '@/types/ble';
 
 // JDY-23 BLE Module Configuration
 const SERVICE_UUID = '0000FFE0-0000-1000-8000-00805F9B34FB';
@@ -13,7 +13,10 @@ export function useBLE() {
     isConnected: false,
     isConnecting: false,
   });
-  const [deviceData, setDeviceData] = useState<DeviceData | null>(null);
+  const [testData, setTestData] = useState<BatteryTestData | null>(null);
+  const [pidData, setPidData] = useState<PIDData | null>(null);
+  const [testConfig, setTestConfig] = useState<TestConfig | null>(null);
+  const [testResult, setTestResult] = useState<TestResult | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [availableDevices, setAvailableDevices] = useState<Device[]>([]);
   
@@ -68,49 +71,74 @@ export function useBLE() {
   // Parse incoming data from device
   const parseDeviceData = useCallback((data: string) => {
     try {
+      console.log('Received:', data);
+      
       if (data.startsWith('DATA:')) {
-        const values = data.substring(5).split(',');
-        if (values.length >= 8) {
-          const newData: DeviceData = {
-            current: parseFloat(values[1]) || 0,
-            voltage: parseFloat(values[2]) || 0,
-            power: parseFloat(values[3]) || 0,
-            peakCurrent: parseFloat(values[4]) || 0,
-            minCurrent: parseFloat(values[5]) || 0,
-            peakVoltage: parseFloat(values[6]) || 0,
-            minVoltage: parseFloat(values[7]) || 0,
-            uptime: parseInt(values[0]) || 0,
-            energy: parseFloat(values[8]) || 0,
-            alarm: false,
-            zeroOffset: 0,
-            timestamp: Date.now(),
-          };
-          setDeviceData(newData);
-        }
-      } else if (data.startsWith('STATUS:')) {
-        // Parse status response
-        const statusData = data.substring(7);
-        const params = new URLSearchParams(statusData.replace(/,/g, '&'));
+        const params = new URLSearchParams(data.substring(5).replace(/,/g, '&'));
         
-        const newData: DeviceData = {
-          current: parseFloat(params.get('CURRENT') || '0'),
-          voltage: parseFloat(params.get('VOLTAGE') || '0'),
-          power: parseFloat(params.get('POWER') || '0'),
-          peakCurrent: parseFloat(params.get('PEAK_I') || '0'),
-          minCurrent: parseFloat(params.get('MIN_I') || '0'),
-          peakVoltage: parseFloat(params.get('PEAK_V') || '0'),
-          minVoltage: parseFloat(params.get('MIN_V') || '0'),
-          uptime: parseInt(params.get('UPTIME') || '0'),
-          energy: parseFloat(params.get('ENERGY') || '0'),
-          alarm: params.get('ALARM') === '1',
-          zeroOffset: parseFloat(params.get('ZERO_OFFSET') || '0'),
+        const newData: BatteryTestData = {
+          voltage: parseFloat(params.get('Voltage') || '0'),
+          current: parseFloat(params.get('Current') || '0'),
+          targetCurrent: parseFloat(params.get('Target_Current') || '0'),
+          capacity: parseFloat(params.get('Capacity') || '0'),
+          testStatus: params.get('Test_Status') as 'STOPPED' | 'RUNNING' || 'STOPPED',
+          elapsedTime: parseInt(params.get('Elapsed_Time') || '0'),
+          internalResistance: params.get('Internal_Resistance_mOhm') ? 
+            parseFloat(params.get('Internal_Resistance_mOhm') || '0') / 1000 : undefined,
           timestamp: Date.now(),
         };
-        setDeviceData(newData);
-      } else if (data.startsWith('ALARM:')) {
-        // Handle alarm notifications
-        setDeviceData(prev => prev ? { ...prev, alarm: true } : null);
-        Alert.alert('Alarm', data.substring(6));
+        setTestData(newData);
+      } else if (data.startsWith('PID:')) {
+        const params = new URLSearchParams(data.substring(4).replace(/,/g, '&'));
+        
+        const newPidData: PIDData = {
+          error: parseFloat(params.get('Error') || '0'),
+          output: parseFloat(params.get('Output') || '0'),
+          integral: parseFloat(params.get('Integral') || '0'),
+        };
+        setPidData(newPidData);
+      } else if (data.startsWith('PID_DEBUG:')) {
+        const params = new URLSearchParams(data.substring(10).replace(/,/g, '&'));
+        
+        const debugPidData: PIDData = {
+          error: parseFloat(params.get('Error') || '0'),
+          output: parseFloat(params.get('PWM_Output') || '0'),
+          integral: parseFloat(params.get('Integral') || '0'),
+          pTerm: parseFloat(params.get('P_Term') || '0'),
+          iTerm: parseFloat(params.get('I_Term') || '0'),
+          dTerm: parseFloat(params.get('D_Term') || '0'),
+        };
+        setPidData(debugPidData);
+      } else if (data.startsWith('CONFIG:')) {
+        const params = new URLSearchParams(data.substring(7).replace(/,/g, '&'));
+        
+        const config: TestConfig = {
+          maxCurrent: parseFloat(params.get('Max_Current') || '20'),
+          minCurrent: parseFloat(params.get('Min_Current') || '1'),
+          cutoffVoltage: parseFloat(params.get('Cutoff_Voltage') || '10'),
+          currentStep: parseFloat(params.get('Current_Step') || '1'),
+        };
+        setTestConfig(config);
+      } else if (data.startsWith('RESULT:')) {
+        const params = new URLSearchParams(data.substring(7).replace(/,/g, '&'));
+        
+        const result: TestResult = {
+          finalCapacity: parseFloat(params.get('Final_Capacity_mAh') || '0'),
+          internalResistance: params.get('Internal_Resistance_mOhm') ? 
+            parseFloat(params.get('Internal_Resistance_mOhm') || '0') / 1000 : undefined,
+          testDuration: parseInt(params.get('Test_Duration_Seconds') || '0'),
+          finalVoltage: parseFloat(params.get('Final_Voltage') || '0'),
+          openCircuitVoltage: parseFloat(params.get('Open_Circuit_Voltage') || '0'),
+          averageCurrent: 0, // Will be calculated
+          energyDelivered: 0, // Will be calculated
+        };
+        setTestResult(result);
+      } else if (data.includes('BT_STATUS:CONNECTED')) {
+        console.log('Bluetooth connection confirmed');
+      } else if (data.includes('Test Started') || data.includes('TEST_STARTED')) {
+        setTestData(prev => prev ? { ...prev, testStatus: 'RUNNING' } : null);
+      } else if (data.includes('Test Stopped') || data.includes('TEST_STOPPED')) {
+        setTestData(prev => prev ? { ...prev, testStatus: 'STOPPED' } : null);
       }
     } catch (error) {
       console.error('Error parsing device data:', error);
@@ -128,7 +156,6 @@ export function useBLE() {
     lines.forEach(line => {
       const trimmedLine = line.trim();
       if (trimmedLine) {
-        console.log('Received:', trimmedLine);
         parseDeviceData(trimmedLine);
       }
     });
@@ -244,14 +271,15 @@ export function useBLE() {
       setConnectionState({
         isConnected: true,
         isConnecting: false,
-        deviceName: device.name || 'Current Monitor',
+        deviceName: device.name || 'Battery Tester',
         deviceId: device.id,
         lastUpdate: Date.now(),
       });
 
-      // Request initial status
+      // Request initial status and config
       setTimeout(() => {
-        sendCommand('STATUS');
+        sendCommand('GET_STATUS');
+        sendCommand('GET_CONFIG');
       }, 1000);
 
     } catch (error) {
@@ -280,7 +308,9 @@ export function useBLE() {
       isConnected: false,
       isConnecting: false,
     });
-    setDeviceData(null);
+    setTestData(null);
+    setPidData(null);
+    setTestResult(null);
     dataBuffer.current = '';
   };
 
@@ -304,54 +334,43 @@ export function useBLE() {
     }
   };
 
-  // Calibrate zero current
-  const calibrateZeroCurrent = async () => {
-    return sendCommand('ZERO_CAL');
+  // Test control functions
+  const startTest = async () => {
+    return sendCommand('START_TEST');
   };
 
-  // Reset statistics
-  const resetStatistics = async () => {
-    return sendCommand('RESET');
+  const stopTest = async () => {
+    return sendCommand('STOP_TEST');
   };
 
-  // Set alarm thresholds
-  const setAlarmThresholds = async (config: Partial<DeviceConfig>) => {
-    const commands = [];
-    
-    if (config.currentAlarmHigh !== undefined) {
-      commands.push(`ALARM_HIGH:${config.currentAlarmHigh}`);
-    }
-    if (config.currentAlarmLow !== undefined) {
-      commands.push(`ALARM_LOW:${config.currentAlarmLow}`);
-    }
-    if (config.voltageAlarmHigh !== undefined) {
-      commands.push(`VALARM_HIGH:${config.voltageAlarmHigh}`);
-    }
-    if (config.voltageAlarmLow !== undefined) {
-      commands.push(`VALARM_LOW:${config.voltageAlarmLow}`);
-    }
-    if (config.alarmsEnabled !== undefined) {
-      commands.push(config.alarmsEnabled ? 'ALARMS_ON' : 'ALARMS_OFF');
-    }
+  const setTargetCurrent = async (current: number) => {
+    return sendCommand(`SET_CURRENT:${current}`);
+  };
 
-    for (const command of commands) {
-      await sendCommand(command);
-      // Small delay between commands
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
+  const getStatus = async () => {
+    return sendCommand('GET_STATUS');
+  };
+
+  const getConfig = async () => {
+    return sendCommand('GET_CONFIG');
   };
 
   return {
     connectionState,
-    deviceData,
+    testData,
+    pidData,
+    testConfig,
+    testResult,
     isScanning,
     availableDevices,
     startScanning,
     connectToDevice,
     disconnect,
     sendCommand,
-    calibrateZeroCurrent,
-    resetStatistics,
-    setAlarmThresholds,
+    startTest,
+    stopTest,
+    setTargetCurrent,
+    getStatus,
+    getConfig,
   };
 }

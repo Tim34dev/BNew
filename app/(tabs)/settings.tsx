@@ -1,93 +1,22 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useState } from 'react';
-import { Settings, Wrench, Zap, Info, Bluetooth } from 'lucide-react-native';
+import { Settings, Bluetooth, Info, Database } from 'lucide-react-native';
 import { useBLE } from '@/hooks/useBLE';
 
 export default function SettingsScreen() {
-  const { calibrateZeroCurrent, sendCommand, connectionState } = useBLE();
-  const [calibrationCurrent, setCalibrationCurrent] = useState('');
-  const [calibrationVoltage, setCalibrationVoltage] = useState('');
+  const { connectionState, testConfig, testResult, getConfig } = useBLE();
 
-  const handleZeroCalibration = async () => {
+  const handleGetConfig = async () => {
     if (!connectionState.isConnected) {
       Alert.alert('Error', 'Device not connected');
       return;
     }
 
     try {
-      await calibrateZeroCurrent();
-      Alert.alert('Success', 'Zero current calibration completed');
+      await getConfig();
+      Alert.alert('Success', 'Configuration refreshed');
     } catch (error) {
-      Alert.alert('Error', 'Failed to calibrate zero current');
-    }
-  };
-
-  const handleCurrentCalibration = async () => {
-    if (!connectionState.isConnected) {
-      Alert.alert('Error', 'Device not connected');
-      return;
-    }
-
-    if (!calibrationCurrent) {
-      Alert.alert('Error', 'Please enter a known current value');
-      return;
-    }
-
-    try {
-      await sendCommand(`CAL:${calibrationCurrent}`);
-      Alert.alert('Success', 'Current calibration completed');
-      setCalibrationCurrent('');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to calibrate current');
-    }
-  };
-
-  const handleVoltageCalibration = async () => {
-    if (!connectionState.isConnected) {
-      Alert.alert('Error', 'Device not connected');
-      return;
-    }
-
-    if (!calibrationVoltage) {
-      Alert.alert('Error', 'Please enter a known voltage value');
-      return;
-    }
-
-    try {
-      await sendCommand(`CALV:${calibrationVoltage}`);
-      Alert.alert('Success', 'Voltage calibration completed');
-      setCalibrationVoltage('');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to calibrate voltage');
-    }
-  };
-
-  const showDeviceInfo = async () => {
-    if (!connectionState.isConnected) {
-      Alert.alert('Error', 'Device not connected');
-      return;
-    }
-
-    try {
-      await sendCommand('STATUS');
-      Alert.alert('Info', 'Status request sent. Check the monitor tab for updated data.');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to get device status');
-    }
-  };
-
-  const showHelp = async () => {
-    if (!connectionState.isConnected) {
-      Alert.alert('Error', 'Device not connected');
-      return;
-    }
-
-    try {
-      await sendCommand('HELP');
-      Alert.alert('Info', 'Help command sent to device');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to send help command');
+      Alert.alert('Error', 'Failed to get configuration');
     }
   };
 
@@ -98,7 +27,7 @@ export default function SettingsScreen() {
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Bluetooth size={20} color="#0EA5E9" />
+            <Bluetooth size={20} color="#3B82F6" />
             <Text style={styles.sectionTitle}>Connection</Text>
           </View>
           
@@ -129,125 +58,116 @@ export default function SettingsScreen() {
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Wrench size={20} color="#F59E0B" />
-            <Text style={styles.sectionTitle}>Calibration</Text>
+            <Settings size={20} color="#F59E0B" />
+            <Text style={styles.sectionTitle}>Device Configuration</Text>
           </View>
           
+          {testConfig ? (
+            <>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Max Current:</Text>
+                <Text style={styles.infoValue}>{testConfig.maxCurrent} A</Text>
+              </View>
+              
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Min Current:</Text>
+                <Text style={styles.infoValue}>{testConfig.minCurrent} A</Text>
+              </View>
+              
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Cutoff Voltage:</Text>
+                <Text style={styles.infoValue}>{testConfig.cutoffVoltage} V</Text>
+              </View>
+              
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Current Step:</Text>
+                <Text style={styles.infoValue}>{testConfig.currentStep} A</Text>
+              </View>
+            </>
+          ) : (
+            <Text style={styles.noDataText}>No configuration data available</Text>
+          )}
+
           <TouchableOpacity
-            style={[styles.actionButton, { opacity: connectionState.isConnected ? 1 : 0.5 }]}
-            onPress={handleZeroCalibration}
+            style={[
+              styles.actionButton,
+              { opacity: connectionState.isConnected ? 1 : 0.5 }
+            ]}
+            onPress={handleGetConfig}
             disabled={!connectionState.isConnected}
           >
-            <Text style={styles.actionButtonText}>Zero Current Calibration</Text>
-            <Text style={styles.actionButtonSubtext}>
-              Calibrate zero point with no current flow
-            </Text>
+            <Text style={styles.actionButtonText}>Refresh Configuration</Text>
           </TouchableOpacity>
-
-          <View style={styles.calibrationGroup}>
-            <Text style={styles.inputLabel}>Current Calibration</Text>
-            <TextInput
-              style={[styles.input, { opacity: connectionState.isConnected ? 1 : 0.5 }]}
-              value={calibrationCurrent}
-              onChangeText={setCalibrationCurrent}
-              placeholder="Enter known current (A)"
-              placeholderTextColor="#64748B"
-              keyboardType="numeric"
-              editable={connectionState.isConnected}
-            />
-            <TouchableOpacity
-              style={[
-                styles.calibrateButton, 
-                { opacity: (connectionState.isConnected && calibrationCurrent) ? 1 : 0.5 }
-              ]}
-              onPress={handleCurrentCalibration}
-              disabled={!connectionState.isConnected || !calibrationCurrent}
-            >
-              <Text style={styles.calibrateButtonText}>Calibrate Current</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.calibrationGroup}>
-            <Text style={styles.inputLabel}>Voltage Calibration</Text>
-            <TextInput
-              style={[styles.input, { opacity: connectionState.isConnected ? 1 : 0.5 }]}
-              value={calibrationVoltage}
-              onChangeText={setCalibrationVoltage}
-              placeholder="Enter known voltage (V)"
-              placeholderTextColor="#64748B"
-              keyboardType="numeric"
-              editable={connectionState.isConnected}
-            />
-            <TouchableOpacity
-              style={[
-                styles.calibrateButton, 
-                { opacity: (connectionState.isConnected && calibrationVoltage) ? 1 : 0.5 }
-              ]}
-              onPress={handleVoltageCalibration}
-              disabled={!connectionState.isConnected || !calibrationVoltage}
-            >
-              <Text style={styles.calibrateButtonText}>Calibrate Voltage</Text>
-            </TouchableOpacity>
-          </View>
         </View>
+
+        {testResult && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Database size={20} color="#8B5CF6" />
+              <Text style={styles.sectionTitle}>Last Test Results</Text>
+            </View>
+            
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Final Capacity:</Text>
+              <Text style={styles.infoValue}>{testResult.finalCapacity.toFixed(0)} mAh</Text>
+            </View>
+            
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Test Duration:</Text>
+              <Text style={styles.infoValue}>
+                {Math.floor(testResult.testDuration / 3600)}h {Math.floor((testResult.testDuration % 3600) / 60)}m
+              </Text>
+            </View>
+            
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Final Voltage:</Text>
+              <Text style={styles.infoValue}>{testResult.finalVoltage.toFixed(3)} V</Text>
+            </View>
+            
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Open Circuit Voltage:</Text>
+              <Text style={styles.infoValue}>{testResult.openCircuitVoltage.toFixed(3)} V</Text>
+            </View>
+            
+            {testResult.internalResistance && (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Internal Resistance:</Text>
+                <Text style={styles.infoValue}>
+                  {(testResult.internalResistance * 1000).toFixed(1)} mΩ
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Info size={20} color="#8B5CF6" />
-            <Text style={styles.sectionTitle}>Device Information</Text>
-          </View>
-          
-          <TouchableOpacity
-            style={[styles.actionButton, { opacity: connectionState.isConnected ? 1 : 0.5 }]}
-            onPress={showDeviceInfo}
-            disabled={!connectionState.isConnected}
-          >
-            <Text style={styles.actionButtonText}>Get Device Status</Text>
-            <Text style={styles.actionButtonSubtext}>
-              Request fresh data from device
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionButton, { opacity: connectionState.isConnected ? 1 : 0.5 }]}
-            onPress={showHelp}
-            disabled={!connectionState.isConnected}
-          >
-            <Text style={styles.actionButtonText}>Show Device Commands</Text>
-            <Text style={styles.actionButtonSubtext}>
-              Display available device commands
-            </Text>
-          </TouchableOpacity>
-          
-          <View style={styles.specsList}>
-            <Text style={styles.specTitle}>Device Specifications</Text>
-            <Text style={styles.specItem}>• Current Range: ±50A (ACS758-50A)</Text>
-            <Text style={styles.specItem}>• Voltage Range: 0-55V</Text>
-            <Text style={styles.specItem}>• Power Range: 0-2750W</Text>
-            <Text style={styles.specItem}>• Resolution: 10-bit ADC</Text>
-            <Text style={styles.specItem}>• Communication: JDY-23 BLE</Text>
-            <Text style={styles.specItem}>• Update Rate: 10Hz</Text>
-            <Text style={styles.specItem}>• Service UUID: 0000FFE0-0000-1000-8000-00805F9B34FB</Text>
-            <Text style={styles.specItem}>• Characteristic UUID: 0000FFE1-0000-1000-8000-00805F9B34FB</Text>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Zap size={20} color="#10B981" />
+            <Info size={20} color="#10B981" />
             <Text style={styles.sectionTitle}>About</Text>
           </View>
           
           <Text style={styles.aboutText}>
-            BLE Current Monitor v1.0{'\n'}
-            Professional electrical measurement system with real-time monitoring, 
-            data logging, and configurable alarms.{'\n\n'}
-            This app connects to Arduino-based current sensors using JDY-23 BLE modules 
-            for wireless data transmission and device control.
+            Battery Capacity Tester v1.0{'\n'}
+            Professional battery testing system with precise current control, 
+            real-time monitoring, and comprehensive analysis.{'\n\n'}
+            This app connects to Arduino-based battery testers using JDY-23 BLE modules 
+            for wireless control and data collection.
           </Text>
           
+          <View style={styles.specsList}>
+            <Text style={styles.specTitle}>Device Specifications</Text>
+            <Text style={styles.specItem}>• Current Range: 1-20A (configurable)</Text>
+            <Text style={styles.specItem}>• Voltage Range: 0-24V</Text>
+            <Text style={styles.specItem}>• Cutoff Voltage: 10V (configurable)</Text>
+            <Text style={styles.specItem}>• Resolution: 12-bit ADC with oversampling</Text>
+            <Text style={styles.specItem}>• Communication: JDY-23 BLE</Text>
+            <Text style={styles.specItem}>• Control: PID-based current regulation</Text>
+            <Text style={styles.specItem}>• Service UUID: 0000FFE0-0000-1000-8000-00805F9B34FB</Text>
+            <Text style={styles.specItem}>• Characteristic UUID: 0000FFE1-0000-1000-8000-00805F9B34FB</Text>
+          </View>
+          
           <Text style={styles.copyrightText}>
-            © 2025 Current Monitor Pro
+            © 2025 Battery Capacity Tester Pro
           </Text>
         </View>
       </ScrollView>
@@ -310,56 +230,34 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: 'right',
   },
+  noDataText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#64748B',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
   actionButton: {
     backgroundColor: '#0F172A',
     padding: 16,
     borderRadius: 12,
-    marginBottom: 12,
+    marginTop: 12,
   },
   actionButtonText: {
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
     color: '#FFFFFF',
-    marginBottom: 4,
+    textAlign: 'center',
   },
-  actionButtonSubtext: {
-    fontSize: 12,
+  aboutText: {
+    fontSize: 14,
     fontFamily: 'Inter-Regular',
     color: '#94A3B8',
-  },
-  calibrationGroup: {
+    lineHeight: 20,
     marginBottom: 16,
   },
-  inputLabel: {
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    color: '#94A3B8',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#0F172A',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    fontFamily: 'Inter-Regular',
-    color: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#334155',
-    marginBottom: 8,
-  },
-  calibrateButton: {
-    backgroundColor: '#0EA5E9',
-    padding: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  calibrateButtonText: {
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
-    color: '#FFFFFF',
-  },
   specsList: {
-    marginTop: 16,
+    marginBottom: 16,
   },
   specTitle: {
     fontSize: 16,
@@ -372,13 +270,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
     color: '#94A3B8',
     marginBottom: 4,
-  },
-  aboutText: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#94A3B8',
-    lineHeight: 20,
-    marginBottom: 16,
   },
   copyrightText: {
     fontSize: 12,

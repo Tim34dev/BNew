@@ -8,45 +8,48 @@ import { DataPoint } from '@/types/ble';
 const { width } = Dimensions.get('window');
 
 export default function ChartsScreen() {
-  const { deviceData, connectionState } = useBLE();
+  const { testData, connectionState } = useBLE();
   const [dataHistory, setDataHistory] = useState<DataPoint[]>([]);
 
   useEffect(() => {
-    if (deviceData && connectionState.isConnected) {
+    if (testData && connectionState.isConnected && testData.testStatus === 'RUNNING') {
       const newPoint: DataPoint = {
         timestamp: Date.now(),
-        current: deviceData.current,
-        voltage: deviceData.voltage,
-        power: deviceData.power,
+        voltage: testData.voltage,
+        current: testData.current,
+        capacity: testData.capacity,
       };
 
       setDataHistory(prev => {
         const updated = [...prev, newPoint];
-        // Keep only last 50 points
-        return updated.slice(-50);
+        // Keep only last 100 points
+        return updated.slice(-100);
       });
     }
-  }, [deviceData, connectionState.isConnected]);
+  }, [testData, connectionState.isConnected]);
 
-  const chartData = dataHistory.map((point, index) => ({
+  const voltageData = dataHistory.map((point, index) => ({
     x: index,
-    y: point.current,
-    voltage: point.voltage,
-    power: point.power,
+    y: point.voltage,
   }));
 
-  const powerData = dataHistory.map((point, index) => ({
+  const currentData = dataHistory.map((point, index) => ({
     x: index,
-    y: point.power,
+    y: point.current,
+  }));
+
+  const capacityData = dataHistory.map((point, index) => ({
+    x: index,
+    y: point.capacity,
   }));
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView}>
-        <Text style={styles.title}>Real-time Data</Text>
+        <Text style={styles.title}>Real-time Charts</Text>
         
         <View style={styles.chartContainer}>
-          <Text style={styles.chartTitle}>Current (A)</Text>
+          <Text style={styles.chartTitle}>Battery Voltage (V)</Text>
           <VictoryChart
             theme={VictoryTheme.material}
             height={200}
@@ -70,15 +73,10 @@ export default function ChartsScreen() {
                 tickLabels: { fill: "#94A3B8", fontSize: 12 },
               }}
             />
-            <VictoryArea
-              data={chartData}
+            <VictoryLine
+              data={voltageData}
               style={{
-                data: { 
-                  fill: "#0EA5E9", 
-                  fillOpacity: 0.2,
-                  stroke: "#0EA5E9",
-                  strokeWidth: 2 
-                }
+                data: { stroke: "#10B981", strokeWidth: 2 }
               }}
               animate={{
                 duration: 500,
@@ -89,7 +87,7 @@ export default function ChartsScreen() {
         </View>
 
         <View style={styles.chartContainer}>
-          <Text style={styles.chartTitle}>Power (W)</Text>
+          <Text style={styles.chartTitle}>Discharge Current (A)</Text>
           <VictoryChart
             theme={VictoryTheme.material}
             height={200}
@@ -111,9 +109,49 @@ export default function ChartsScreen() {
               }}
             />
             <VictoryLine
-              data={powerData}
+              data={currentData}
               style={{
                 data: { stroke: "#F59E0B", strokeWidth: 2 }
+              }}
+              animate={{
+                duration: 500,
+                onLoad: { duration: 500 }
+              }}
+            />
+          </VictoryChart>
+        </View>
+
+        <View style={styles.chartContainer}>
+          <Text style={styles.chartTitle}>Capacity (mAh)</Text>
+          <VictoryChart
+            theme={VictoryTheme.material}
+            height={200}
+            width={width - 40}
+            padding={{ left: 60, top: 20, right: 40, bottom: 40 }}
+          >
+            <VictoryAxis
+              dependentAxis
+              style={{
+                axis: { stroke: "#64748B" },
+                tickLabels: { fill: "#94A3B8", fontSize: 12 },
+                grid: { stroke: "#334155", strokeWidth: 0.5 }
+              }}
+            />
+            <VictoryAxis
+              style={{
+                axis: { stroke: "#64748B" },
+                tickLabels: { fill: "#94A3B8", fontSize: 12 },
+              }}
+            />
+            <VictoryArea
+              data={capacityData}
+              style={{
+                data: { 
+                  fill: "#8B5CF6", 
+                  fillOpacity: 0.3,
+                  stroke: "#8B5CF6",
+                  strokeWidth: 2 
+                }
               }}
               animate={{
                 duration: 500,
@@ -126,14 +164,15 @@ export default function ChartsScreen() {
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>
-              {(deviceData?.peakCurrent ?? 0).toFixed(2)}
+              {dataHistory.length}
             </Text>
-            <Text style={styles.statLabel}>Peak Current (A)</Text>
+            <Text style={styles.statLabel}>Data Points</Text>
           </View>
           
           <View style={styles.statCard}>
             <Text style={styles.statValue}>
-              {(deviceData?.peakVoltage ?? 0).toFixed(2)}
+              {dataHistory.length > 0 ? 
+                Math.max(...dataHistory.map(d => d.voltage)).toFixed(2) : '0.00'}
             </Text>
             <Text style={styles.statLabel}>Peak Voltage (V)</Text>
           </View>
@@ -142,16 +181,18 @@ export default function ChartsScreen() {
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
             <Text style={styles.statValue}>
-              {Math.floor((deviceData?.uptime ?? 0) / 60)}
+              {dataHistory.length > 0 ? 
+                Math.min(...dataHistory.map(d => d.voltage)).toFixed(2) : '0.00'}
             </Text>
-            <Text style={styles.statLabel}>Uptime (min)</Text>
+            <Text style={styles.statLabel}>Min Voltage (V)</Text>
           </View>
           
           <View style={styles.statCard}>
             <Text style={styles.statValue}>
-              {dataHistory.length}
+              {dataHistory.length > 0 ? 
+                (dataHistory.reduce((sum, d) => sum + d.current, 0) / dataHistory.length).toFixed(2) : '0.00'}
             </Text>
-            <Text style={styles.statLabel}>Data Points</Text>
+            <Text style={styles.statLabel}>Avg Current (A)</Text>
           </View>
         </View>
       </ScrollView>
@@ -202,7 +243,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 24,
     fontFamily: 'Inter-Bold',
-    color: '#0EA5E9',
+    color: '#FBBF24',
     marginBottom: 4,
   },
   statLabel: {

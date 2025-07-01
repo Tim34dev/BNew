@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Activity, Settings } from 'lucide-react-native';
+import { Battery, Settings, BarChart3, Zap } from 'lucide-react-native';
 
 export default function TabLayout() {
   return (
@@ -7,15 +7,15 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#0F172A',
-          borderTopColor: '#1E293B',
+          backgroundColor: '#1E40AF',
+          borderTopColor: '#3B82F6',
           borderTopWidth: 1,
           paddingBottom: 8,
           paddingTop: 8,
           height: 80,
         },
-        tabBarActiveTintColor: '#0EA5E9',
-        tabBarInactiveTintColor: '#64748B',
+        tabBarActiveTintColor: '#FBBF24',
+        tabBarInactiveTintColor: '#93C5FD',
         tabBarLabelStyle: {
           fontSize: 12,
           fontFamily: 'Inter-Medium',
@@ -25,9 +25,27 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Monitor',
+          title: 'Test',
           tabBarIcon: ({ size, color }) => (
-            <Activity size={size} color={color} />
+            <Battery size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="charts"
+        options={{
+          title: 'Charts',
+          tabBarIcon: ({ size, color }) => (
+            <BarChart3 size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="control"
+        options={{
+          title: 'Control',
+          tabBarIcon: ({ size, color }) => (
+            <Zap size={size} color={color} />
           ),
         }}
       />
